@@ -1,0 +1,23 @@
+######################################################
+# GENERAL
+######################################################
+
+Host github-work
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/id_ed25519
+
+######################################################
+# PRODUCTION
+######################################################
+
+Host prod-api
+  HostName 192.0.2.12
+  User deploy
+  Port 2202
+  IdentityFile ~/.ssh/id_ed25519
+  ProxyJump bastion
+
+# Host archived-server
+#   HostName 192.0.2.99
+#   User root

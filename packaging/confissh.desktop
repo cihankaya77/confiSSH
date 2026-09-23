@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=ConfiSSH
+GenericName=SSH Configuration Manager
+GenericName[tr]=SSH Yapılandırma Yöneticisi
+Comment=View and manage your OpenSSH connections
+Comment[tr]=OpenSSH bağlantılarınızı görüntüleyin ve yönetin
+Exec=confissh
+Icon=confissh
+Terminal=false
+Type=Application
+Categories=Network;
+Keywords=SSH;server;terminal;config;
+StartupNotify=true
+StartupWMClass=io.github.confissh.ConfiSSH

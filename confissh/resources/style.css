@@ -1,0 +1,57 @@
+/* ConfiSSH palette supplied by the appearance preference. */
+* { transition-duration: 0s; }
+window, dialog { background: @base; color: @ink; font-family: "Ubuntu Sans", "Ubuntu", sans-serif; font-size: 13px; }
+headerbar { min-height: 54px; background: @surface; color: @ink; border-bottom: 1px solid @line; box-shadow: none; }
+headerbar .title { font-weight: 700; }
+headerbar .subtitle { color: @muted; }
+button, entry, combobox button { background: @surface; color: @ink; border: 1px solid @line; border-radius: 8px; box-shadow: none; text-shadow: none; min-height: 30px; padding: 4px 10px; }
+button:hover { background: @selected; }
+button:focus, entry:focus { border-color: @accent; }
+button:disabled { color: @muted; opacity: 0.5; }
+button.flat { background: transparent; border-color: transparent; padding: 4px 6px; }
+button.flat:hover { background: @selected; }
+button.suggested-action, .connect-button { background: #316de6; color: #ffffff; border-color: #316de6; font-weight: 600; }
+button.suggested-action:hover, .connect-button:hover { background: #235bc8; }
+button.destructive-action { background: #b9384b; color: #ffffff; }
+.sidebar { background: @panel; }
+paned > separator { min-width: 1px; min-height: 1px; padding: 0; margin: 0; background: @line; background-image: none; border: 0; }
+paned > separator:hover, paned > separator:focus { background: @accent; }
+.sidebar-title { font-size: 18px; font-weight: 700; }
+.page-title { font-size: 25px; font-weight: 600; }
+.section-label { font-size: 12px; font-weight: 600; color: @muted; }
+.form-label { font-weight: 600; color: @ink; }
+.muted, .host-meta, .path-label { color: @muted; font-size: 12px; }
+list, viewport, scrolledwindow { background: transparent; }
+.group-list row { border-radius: 8px; margin: 3px 0; color: @ink; }
+.group-list row label { color: @ink; }
+.group-list row:hover { background: alpha(@selected, 0.6); }
+.group-list row:selected { background: @selected; }
+.group-list row:selected label { color: @accent; }
+.count { min-width: 18px; padding: 2px 4px; color: @muted; font-size: 11px; }
+.host-row { background: @surface; border-bottom: 1px solid @line; border-left: 3px solid transparent; margin: 0; }
+.host-row:first-child { border-radius: 8px 8px 0 0; }
+.host-row:last-child { border-bottom: 0; border-radius: 0 0 8px 8px; }
+.host-row:hover { background: alpha(@selected, 0.6); }
+.host-row:focus, .host-row:selected { outline-style: none; box-shadow: none; }
+.host-tags > flowboxchild { padding: 0; outline-style: none; }
+.tag { background: alpha(@accent, 0.09); color: @accent; border-radius: 4px; padding: 3px 8px; font-size: 11px; }
+.host-title { font-size: 15px; font-weight: 700; color: @ink; }
+.host-detail { font-family: monospace; font-size: 12px; color: @muted; }
+.badge, .disabled-badge { padding: 3px 7px; border-radius: 4px; background: alpha(@muted, 0.10); color: @muted; font-size: 11px; font-weight: 500; }
+.disabled-badge { background: alpha(@muted, 0.12); color: @muted; }
+.status-on { color: #39b786; font-size: 13px; }
+.status-off { color: @muted; font-size: 13px; }
+.empty-title { font-size: 22px; font-weight: 700; }
+textview, textview text { background: @surface; color: @ink; }
+textview { padding: 12px; }
+entry selection, textview text selection { background: @selected; color: @ink; }
+menu, popover { background: @surface; color: @ink; border-color: @line; }
+menuitem:hover { background: @selected; color: @ink; }
+separator { background: @line; min-height: 1px; }
+infobar { background: @selected; color: @ink; border-radius: 8px; }
+scrollbar { background: transparent; }
+scrollbar slider { background: alpha(@muted, 0.4); border-radius: 6px; min-width: 5px; }
+notebook > header { background: @panel; border-color: @line; }
+notebook > stack { background: @base; }
+notebook tab { color: @muted; padding: 10px 14px; }
+notebook tab:checked { color: @accent; }

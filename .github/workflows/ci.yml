@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Test and UI checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends \
+            desktop-file-utils gir1.2-gtk-3.0 libx11-6 libxtst6 \
+            openssh-client python3 python3-cairo python3-gi xauth xvfb
+      - name: Run unit and static checks
+        run: |
+          make test
+          make lint
+      - name: Run GTK workflow check
+        run: timeout 90 xvfb-run -a -s '-screen 0 1280x900x24' env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. python3 scripts/check-ui.py
+      - name: Run pointer drag-and-drop check
+        run: timeout 90 xvfb-run -a -s '-screen 0 1280x900x24' env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. python3 scripts/check-drag.py
+
+  deb-appimage:
+    name: Build DEB and AppImage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends curl squashfs-tools
+      - name: Build packages
+        run: make deb appimage
+      - name: Validate packages
+        run: |
+          test "$(dpkg-deb -f dist/confissh_*.deb Version)" = "$(python3 -c 'from confissh import __version__; print(__version__)')"
+          dpkg-deb -c dist/confissh_*.deb | grep -F confissh/resources/locales/tr.json
+          test "$(od -An -tx1 -j8 -N3 dist/ConfiSSH-*.AppImage | tr -d ' \n')" = "414902"
+          extract_dir=$(mktemp -d)
+          trap 'rm -rf "$extract_dir"' EXIT
+          cd "$extract_dir"
+          "$GITHUB_WORKSPACE"/dist/ConfiSSH-*.AppImage --appimage-extract >/dev/null
+          test -x squashfs-root/AppRun
+          test -f squashfs-root/usr/share/doc/confissh/LICENSE
+          test -f squashfs-root/usr/lib/confissh/confissh/resources/locales/tr.json
+      - name: Upload DEB and AppImage
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: deb-appimage
+          path: |
+            dist/*.deb
+            dist/*.AppImage
+          if-no-files-found: error
+
+  rpm:
+    name: Build RPM
+    runs-on: ubuntu-24.04
+    container: fedora:42
+    timeout-minutes: 20
+    steps:
+      - name: Install checkout dependencies
+        run: dnf -y install git gzip tar
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install build dependencies
+        run: dnf -y install make rpm-build python3-devel
+      - name: Build and validate RPM
+        run: |
+          make rpm
+          rpm -K dist/*.rpm
+          rpm -qpl dist/*.rpm | grep -Fx /usr/bin/confissh
+          rpm -qpl dist/*.rpm | grep -F /usr/share/licenses/confissh/
+          rpm -qpl dist/*.rpm | grep -F confissh/resources/locales/tr.json
+      - name: Upload RPM
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rpm
+          path: dist/*.rpm
+          if-no-files-found: error
