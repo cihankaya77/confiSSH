@@ -1,0 +1,54 @@
+name: Hata bildirimi
+description: Tekrarlanabilir bir sorunu bildirin
+title: "[Hata]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Teşekkürler. Güvenlik açıklarını ve hassas SSH bilgilerini herkese açık issue olarak paylaşmayın; SECURITY.md dosyasını izleyin.
+  - type: textarea
+    id: description
+    attributes:
+      label: Sorun
+      description: Ne oldu, ne olmasını bekliyordunuz?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Yeniden üretme adımları
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ConfiSSH sürümü
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: İşletim sistemi ve masaüstü
+      placeholder: Ubuntu 24.04, GNOME 46, X11/Wayland
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: İlgili günlükler
+      description: Hassas bilgileri örnek değerlerle değiştirdikten sonra ekleyin.
+      render: shell
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Gizlilik kontrolü
+      options:
+        - label: Gerçek sunucu adresi, kullanıcı adı, özel anahtar, parola veya erişim belirteci paylaşmadım.
+          required: true

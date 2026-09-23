@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - v*.*.*
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify release tag
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version=$(python3 -c 'from confissh import __version__; print(__version__)')
+          printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
+          test "$RELEASE_TAG" = "v$version"
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends \
+            desktop-file-utils gir1.2-gtk-3.0 libx11-6 libxtst6 \
+            openssh-client python3 python3-cairo python3-gi python3-gi-cairo \
+            squashfs-tools curl xauth xvfb
+      - name: Test and build packages
+        run: |
+          make test
+          make lint
+          timeout 90 make check-ui
+          timeout 90 make check-drag
+          make deb appimage rpm-docker
+      - name: Create checksums
+        run: |
+          cd dist
+          sha256sum *.deb *.rpm *.AppImage > SHA256SUMS
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/*.deb dist/*.rpm dist/*.AppImage dist/SHA256SUMS --clobber
+          else
+            gh release create "$RELEASE_TAG" \
+              dist/*.deb dist/*.rpm dist/*.AppImage dist/SHA256SUMS \
+              --verify-tag --generate-notes --title "ConfiSSH $RELEASE_TAG"
+          fi

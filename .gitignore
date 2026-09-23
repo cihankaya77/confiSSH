@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Test and analysis output
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build output and downloaded runtimes
+build/
+dist/
+
+# Editors and operating systems
+*.swp
+*.swo
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
