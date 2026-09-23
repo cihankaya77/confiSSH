@@ -6,6 +6,25 @@ Ubuntu için GTK tabanlı OpenSSH bağlantı yöneticisi. Terminalde normal
 `ssh host-adı` kullanımı korunur. SSH ayarları SSH dosyalarında, uygulama bilgileri
 ayrı JSON dosyasında tutulur.
 
+## Ekran görüntüleri
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/confissh-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/confissh-light.png">
+  <img alt="Grupları ve favorileri gösteren ConfiSSH bağlantı listesi" src="docs/screenshots/confissh-light.png">
+</picture>
+
+| Bağlantı ayarları | Organizasyon bilgileri |
+|:--:|:--:|
+| ![SSH bağlantı alanları](docs/screenshots/confissh-editor.png) | ![Grup, ortam, etiket ve not alanları](docs/screenshots/confissh-organization.png) |
+
+| Görünüm | Yedekler |
+|:--:|:--:|
+| ![Tema ve dil ayarları](docs/screenshots/confissh-settings.png) | ![Yedek yönetimi](docs/screenshots/confissh-backups.png) |
+
+Ekran görüntüleri izole GTK iş akışı testi tarafından, yalnızca geçici test
+verileri kullanılarak üretilir.
+
 ## Veri yapısı
 
 - `~/.ssh/config` ve Include dosyaları: HostName, User, Port, IdentityFile,
