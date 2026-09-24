@@ -5,6 +5,10 @@ All notable changes to this project are documented here. Versions follow
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-24
+
+- Open SSH connections in the system-selected terminal or Fedora Ptyxis.
+
 ## [0.1.1] - 2026-09-24
 
 - Install RPM application sources independently of the build Python version;

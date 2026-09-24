@@ -274,7 +274,7 @@ ilk açılışta bu dosyaya da bağlantı kimlikleri eklenir.
 
 ```bash
 make deb
-sudo apt install ./dist/confissh_0.1.1_amd64.deb
+sudo apt install ./dist/confissh_0.1.2_amd64.deb
 ```
 
 Fedora üzerinde RPM oluşturmak ve kurmak için (aynı paket Fedora 42, 43 ve 44 üzerinde test edilir):
@@ -282,7 +282,7 @@ Fedora üzerinde RPM oluşturmak ve kurmak için (aynı paket Fedora 42, 43 ve 4
 ```bash
 sudo dnf install rpm-build python3
 make rpm
-sudo dnf install ./dist/confissh-0.1.1-2.noarch.rpm
+sudo dnf install ./dist/confissh-0.1.2-2.noarch.rpm
 ```
 
 Ubuntu üzerinde Docker ile aynı Fedora RPM'si üretilebilir:
@@ -297,7 +297,7 @@ AppImage oluşturmak ve çalıştırmak için:
 ```bash
 sudo apt install squashfs-tools curl
 make appimage
-./dist/ConfiSSH-0.1.1-x86_64.AppImage
+./dist/ConfiSSH-0.1.2-x86_64.AppImage
 ```
 
 AppImage, uygulama kodunu tek dosyada taşır ve sandbox kullanmadığı için
@@ -323,8 +323,8 @@ Yeni sürüm hazırlamak için `confissh/__init__.py` ve `CHANGELOG.md`
 güncellenip değişiklikler ana dala alınır. Ardından sürümle aynı etiketi itin:
 
 ```bash
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.2
+git push origin v0.1.2
 ```
 
 Etiket iş akışı DEB, Fedora RPM ve AppImage dosyalarını üretir; SHA-256

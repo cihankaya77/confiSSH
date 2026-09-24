@@ -6,7 +6,6 @@ import copy
 import difflib
 import time
 import shlex
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -30,6 +29,7 @@ from .core import (
     parse_extra_options,
     included_paths,
     parse_tags,
+    terminal_command,
 )
 
 
@@ -1562,18 +1562,12 @@ class MainWindow(Gtk.ApplicationWindow):
         self.notify(_("Copied: {command}").format(command=command))
 
     def connect_to(self, entry: HostEntry) -> None:
-        terminal = next(
-            (binary for binary in ("x-terminal-emulator", "gnome-terminal", "konsole", "xterm") if shutil.which(binary)),
-            None,
-        )
-        if not terminal:
-            self.error_dialog(_("No terminal application was found. You can copy the SSH command instead."))
-            return
         alias = entry.aliases[0]
         ssh_command = ["ssh", "-F", str(config_path()), "--", alias]
-        command = [terminal, "-e", *ssh_command]
-        if terminal.endswith("gnome-terminal"):
-            command = [terminal, "--", *ssh_command]
+        command = terminal_command(ssh_command)
+        if command is None:
+            self.error_dialog(_("No terminal application was found. You can copy the SSH command instead."))
+            return
         try:
             subprocess.Popen(command, start_new_session=True)
             data = copy.deepcopy(self.store.data)

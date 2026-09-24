@@ -29,6 +29,21 @@ SEPARATOR_RE = re.compile(r"^\s*#+\s*$")
 PRIMARY_KEYS = ("hostname", "user", "port", "identityfile", "proxyjump")
 
 
+def terminal_command(ssh_command: list[str]) -> list[str] | None:
+    """Wrap an SSH argv for the first available supported terminal."""
+    for terminal, separator in (
+        ("xdg-terminal-exec", "--"),
+        ("ptyxis", "--"),
+        ("x-terminal-emulator", "-e"),
+        ("gnome-terminal", "--"),
+        ("konsole", "-e"),
+        ("xterm", "-e"),
+    ):
+        if shutil.which(terminal):
+            return [terminal, separator, *ssh_command]
+    return None
+
+
 def parse_tags(text: str) -> list[str]:
     """Comma-separated labels; preserve spelling and order, deduplicate by case."""
     if "\n" in text or "\r" in text:

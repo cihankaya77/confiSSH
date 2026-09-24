@@ -40,6 +40,9 @@ install -m0644 confissh/resources/locales/tr.json %{buildroot}%{_datadir}/confis
 %license LICENSE
 
 %changelog
+* Thu Sep 24 2026 ConfiSSH Contributors - 0.1.2-2
+- Detect the preferred terminal and Fedora Ptyxis for SSH connections.
+
 * Thu Sep 24 2026 ConfiSSH Contributors - 0.1.1-2
 - Install private Python sources independently of the build Python version.
 

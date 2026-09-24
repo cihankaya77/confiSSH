@@ -272,7 +272,7 @@ DEB:
 
 ```bash
 make deb
-sudo apt install ./dist/confissh_0.1.1_amd64.deb
+sudo apt install ./dist/confissh_0.1.2_amd64.deb
 ```
 
 RPM on Fedora (the same package is tested on Fedora 42, 43, and 44):
@@ -280,7 +280,7 @@ RPM on Fedora (the same package is tested on Fedora 42, 43, and 44):
 ```bash
 sudo dnf install rpm-build python3
 make rpm
-sudo dnf install ./dist/confissh-0.1.1-2.noarch.rpm
+sudo dnf install ./dist/confissh-0.1.2-2.noarch.rpm
 ```
 
 Build the same Fedora RPM from Ubuntu with Docker:
@@ -295,7 +295,7 @@ AppImage:
 ```bash
 sudo apt install squashfs-tools curl
 make appimage
-./dist/ConfiSSH-0.1.1-x86_64.AppImage
+./dist/ConfiSSH-0.1.2-x86_64.AppImage
 ```
 
 The thin AppImage is not sandboxed, so it can access `~/.ssh` and the system
@@ -317,8 +317,8 @@ To prepare a release, update `confissh/__init__.py` and `CHANGELOG.md`, merge th
 changes into the main branch, and push a matching tag:
 
 ```bash
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.2
+git push origin v0.1.2
 ```
 
 The tag workflow publishes DEB, Fedora RPM, AppImage, and SHA-256 checksums in

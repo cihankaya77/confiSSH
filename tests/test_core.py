@@ -3,8 +3,9 @@ import stat
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from confissh.core import ConfigDocument, ConfigError, HostEntry, merge_options, parse_extra_options
+from confissh.core import ConfigDocument, ConfigError, HostEntry, merge_options, parse_extra_options, terminal_command
 from confissh.i18n import _, get_language, set_language
 
 
@@ -114,6 +115,23 @@ class LocalizationTests(unittest.TestCase):
         self.assertEqual(_("Settings"), "Ayarlar")
         self.assertEqual(_("Unknown source message"), "Unknown source message")
         self.assertEqual(get_language(), "tr")
+
+
+class TerminalCommandTests(unittest.TestCase):
+    def test_fedora_ptyxis_keeps_ssh_arguments_separate(self):
+        ssh = ["ssh", "-F", "/tmp/ssh config", "--", "prod host"]
+        with patch("confissh.core.shutil.which", side_effect=lambda name: "/usr/bin/ptyxis" if name == "ptyxis" else None):
+            self.assertEqual(terminal_command(ssh), ["ptyxis", "--", *ssh])
+
+    def test_default_terminal_and_legacy_terminal_use_their_own_separator(self):
+        ssh = ["ssh", "--", "example"]
+        for name, separator in (("xdg-terminal-exec", "--"), ("gnome-terminal", "--"), ("xterm", "-e")):
+            with self.subTest(name=name), patch("confissh.core.shutil.which", side_effect=lambda candidate: candidate == name):
+                self.assertEqual(terminal_command(ssh), [name, separator, *ssh])
+
+    def test_no_supported_terminal(self):
+        with patch("confissh.core.shutil.which", return_value=None):
+            self.assertIsNone(terminal_command(["ssh", "example"]))
 
 
 if __name__ == "__main__":
