@@ -188,13 +188,15 @@ release_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' \
   https://github.com/cihankaya77/confiSSH/releases/latest)
 release_tag=${release_url##*/}
 version=${release_tag#v}
-package="/tmp/confissh-${version}-1.fc42.noarch.rpm"
+package="/tmp/confissh-${version}-2.noarch.rpm"
 curl -fL \
-  "https://github.com/cihankaya77/confiSSH/releases/download/${release_tag}/confissh-${version}-1.fc42.noarch.rpm" \
+  "https://github.com/cihankaya77/confiSSH/releases/download/${release_tag}/confissh-${version}-2.noarch.rpm" \
   -o "$package"
 sudo dnf install "$package"
 ```
 
+RPM, sistemin Python sürümünü (3.10+) kullanır; uygulama kaynakları derleme
+ortamının Python sürümünden bağımsız olarak `/usr/share/confissh` altına kurulur.
 `dnf`, gerekli Python, GTK 3 ve OpenSSH paketlerini otomatik olarak kurar.
 Kurulumdan sonra uygulama menüsünden veya `confissh` komutuyla açabilirsiniz.
 
@@ -272,21 +274,22 @@ ilk açılışta bu dosyaya da bağlantı kimlikleri eklenir.
 
 ```bash
 make deb
-sudo apt install ./dist/confissh_0.1.0_amd64.deb
+sudo apt install ./dist/confissh_0.1.1_amd64.deb
 ```
 
-Fedora 42 üzerinde RPM oluşturmak ve kurmak için:
+Fedora üzerinde RPM oluşturmak ve kurmak için (aynı paket Fedora 42, 43 ve 44 üzerinde test edilir):
 
 ```bash
-sudo dnf install rpm-build python3-devel
+sudo dnf install rpm-build python3
 make rpm
-sudo dnf install ./dist/confissh-0.1.0-1.fc42.noarch.rpm
+sudo dnf install ./dist/confissh-0.1.1-2.noarch.rpm
 ```
 
 Ubuntu üzerinde Docker ile aynı Fedora RPM'si üretilebilir:
 
 ```bash
 make rpm-docker
+make check-rpm
 ```
 
 AppImage oluşturmak ve çalıştırmak için:
@@ -294,7 +297,7 @@ AppImage oluşturmak ve çalıştırmak için:
 ```bash
 sudo apt install squashfs-tools curl
 make appimage
-./dist/ConfiSSH-0.1.0-x86_64.AppImage
+./dist/ConfiSSH-0.1.1-x86_64.AppImage
 ```
 
 AppImage, uygulama kodunu tek dosyada taşır ve sandbox kullanmadığı için
@@ -306,8 +309,8 @@ AppImage type-2 runtime `build/appimage` altına indirilir ve sabit SHA-256
 ile önceden indirilmiş bir runtime da verilebilir. x86_64 ve aarch64 desteklenir.
 
 Üç biçimi birlikte üretmek için gerekli araçlar kurulduktan sonra
-`make packages` kullanılabilir. Kullanılabilir Fedora RPM makroları yoksa RPM
-otomatik olarak Fedora Docker container içinde oluşturulur. Çıktılar `dist/`
+`make packages` kullanılabilir. `rpmbuild` ve RPM ile kurulmuş Python yoksa
+RPM otomatik olarak Fedora Docker container içinde oluşturulur. Çıktılar `dist/`
 dizinine yazılır.
 
 ## CI/CD ve sürümleme
@@ -320,10 +323,10 @@ Yeni sürüm hazırlamak için `confissh/__init__.py` ve `CHANGELOG.md`
 güncellenip değişiklikler ana dala alınır. Ardından sürümle aynı etiketi itin:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
-Etiket iş akışı DEB, Fedora 42 RPM ve AppImage dosyalarını üretir; SHA-256
+Etiket iş akışı DEB, Fedora RPM ve AppImage dosyalarını üretir; SHA-256
 özetleriyle birlikte GitHub Release olarak yayımlar. Katkı süreci
 `CONTRIBUTING.md`, hassas hata bildirimleri ise `SECURITY.md` içinde açıklanır.

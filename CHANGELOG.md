@@ -5,6 +5,10 @@ All notable changes to this project are documented here. Versions follow
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-24
+
+- Install RPM application sources independently of the build Python version;
+  validate the same RPM on Fedora 42, 43, and 44.
 - Use English as the source and fallback language.
 - Add English, Turkish, and system-default interface language options.
 

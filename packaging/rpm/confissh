@@ -1,0 +1,10 @@
+#!/usr/bin/python3 -s
+"""Run the RPM's private application with the system Python and GTK bindings."""
+import sys
+
+sys.path.insert(0, "/usr/share/confissh")
+
+if __name__ == "__main__":
+    from confissh.app import main
+
+    raise SystemExit(main())

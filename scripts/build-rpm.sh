@@ -9,10 +9,6 @@ if ! command -v rpmbuild >/dev/null 2>&1; then
     echo "Error: rpmbuild is required to build the RPM (Fedora: sudo dnf install rpm-build)." >&2
     exit 1
 fi
-if [ "$(rpm --eval '%{python3_sitelib}')" = '%{python3_sitelib}' ]; then
-    echo "Error: Python RPM macros are required (Fedora: sudo dnf install python3-devel)." >&2
-    exit 1
-fi
 
 BUILD_DIR=$(mktemp -d)
 trap 'rm -rf "$BUILD_DIR"' EXIT INT TERM

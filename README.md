@@ -178,13 +178,15 @@ release_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' \
   https://github.com/cihankaya77/confiSSH/releases/latest)
 release_tag=${release_url##*/}
 version=${release_tag#v}
-package="/tmp/confissh-${version}-1.fc42.noarch.rpm"
+package="/tmp/confissh-${version}-2.noarch.rpm"
 curl -fL \
-  "https://github.com/cihankaya77/confiSSH/releases/download/${release_tag}/confissh-${version}-1.fc42.noarch.rpm" \
+  "https://github.com/cihankaya77/confiSSH/releases/download/${release_tag}/confissh-${version}-2.noarch.rpm" \
   -o "$package"
 sudo dnf install "$package"
 ```
 
+The RPM uses the system Python (3.10+) and installs its application sources in
+`/usr/share/confissh`, independently of the build environment’s Python version.
 `dnf` installs the required Python, GTK 3, and OpenSSH packages. Launch ConfiSSH
 from the application menu or with `confissh`.
 
@@ -270,21 +272,22 @@ DEB:
 
 ```bash
 make deb
-sudo apt install ./dist/confissh_0.1.0_amd64.deb
+sudo apt install ./dist/confissh_0.1.1_amd64.deb
 ```
 
-RPM on Fedora 42:
+RPM on Fedora (the same package is tested on Fedora 42, 43, and 44):
 
 ```bash
-sudo dnf install rpm-build python3-devel
+sudo dnf install rpm-build python3
 make rpm
-sudo dnf install ./dist/confissh-0.1.0-1.fc42.noarch.rpm
+sudo dnf install ./dist/confissh-0.1.1-2.noarch.rpm
 ```
 
 Build the same Fedora RPM from Ubuntu with Docker:
 
 ```bash
 make rpm-docker
+make check-rpm
 ```
 
 AppImage:
@@ -292,7 +295,7 @@ AppImage:
 ```bash
 sudo apt install squashfs-tools curl
 make appimage
-./dist/ConfiSSH-0.1.0-x86_64.AppImage
+./dist/ConfiSSH-0.1.1-x86_64.AppImage
 ```
 
 The thin AppImage is not sandboxed, so it can access `~/.ssh` and the system
@@ -301,8 +304,8 @@ first build downloads the official AppImage type-2 runtime into
 `build/appimage` and verifies its pinned SHA-256 digest. Set `APPIMAGE_RUNTIME`
 to use a pre-downloaded runtime. x86_64 and aarch64 are supported.
 
-Run `make packages` to build all three formats. On systems without usable
-Fedora RPM macros, the RPM is built in the Fedora Docker container
+Run `make packages` to build all three formats. On systems without
+`rpmbuild` and an RPM-managed Python installation, the RPM is built in the Fedora Docker container
 automatically. Outputs are written to `dist/`.
 
 ## CI/CD and releases
@@ -314,10 +317,10 @@ To prepare a release, update `confissh/__init__.py` and `CHANGELOG.md`, merge th
 changes into the main branch, and push a matching tag:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
-The tag workflow publishes DEB, Fedora 42 RPM, AppImage, and SHA-256 checksums in
+The tag workflow publishes DEB, Fedora RPM, AppImage, and SHA-256 checksums in
 a GitHub Release. See `CONTRIBUTING.md` for contribution guidelines and
 `SECURITY.md` for private vulnerability reporting.
