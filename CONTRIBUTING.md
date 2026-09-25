@@ -1,7 +1,12 @@
 # Contributing
 
 Contributions are welcome. Before sending a change, open a related issue when
-possible or discuss the approach in an existing issue.
+possible or discuss the approach in an existing issue. Please follow the
+[Code of Conduct](CODE_OF_CONDUCT.md) in all project interactions.
+
+See the [development guide](docs/DEVELOPMENT.md) for running the app, building
+packages, and preparing releases. The [technical reference](docs/TECHNICAL.md)
+describes configuration storage and editing behavior.
 
 ## Development environment
 
@@ -23,3 +28,6 @@ test data.
 
 By contributing code, you agree that it may be distributed under the project's
 MIT license.
+
+Repository maintainers can find the prepared description and topic settings in
+[GitHub repository metadata](.github/repository-metadata.md).

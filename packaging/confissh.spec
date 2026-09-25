@@ -1,7 +1,8 @@
 Name:           confissh
 Version:        %{_confissh_version}
 Release:        2
-Summary:        OpenSSH connection manager
+Summary:        Graphical SSH connection manager for Linux
+URL:            https://github.com/cihankaya77/confiSSH
 License:        MIT
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
@@ -13,8 +14,10 @@ Requires:       gtk3
 Requires:       openssh-clients
 
 %description
-Displays and edits connections from existing OpenSSH config files and stores
-them with application metadata and safe backups.
+Organize servers into groups, find connections, and launch SSH in your
+terminal. Edit OpenSSH settings, browse and copy local SSH keys, configure
+jump hosts and tunnels, and restore automatic configuration backups.
+Works with existing SSH config files. Includes English and Turkish interfaces.
 
 %prep
 %setup -q

@@ -54,9 +54,12 @@ Architecture: $ARCH
 Depends: python3 (>= 3.10), python3-gi, gir1.2-gtk-3.0, openssh-client
 Installed-Size: $INSTALLED_SIZE
 Maintainer: ConfiSSH Contributors
-Description: Simple OpenSSH configuration manager
- Groups and edits connections from existing OpenSSH config files and
- stores them with safe backups.
+Homepage: https://github.com/cihankaya77/confiSSH
+Description: Graphical SSH connection manager for Linux
+ Organize servers into groups, find connections, and launch SSH in your
+ terminal. Edit OpenSSH settings, browse and copy local SSH keys, configure
+ jump hosts and tunnels, and restore automatic configuration backups.
+ Works with existing SSH config files. Includes English and Turkish interfaces.
 EOF
 
 mkdir -p "$PROJECT_DIR/dist"
