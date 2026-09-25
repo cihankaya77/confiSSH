@@ -108,7 +108,9 @@ eklenme ve yedekten dönüş için saklanır.
   tekrar Özel sıra seçilince elle düzenlenen sıra geri gelir. Sürükleme özel
   sıralamaya geçirir. Özel sıra JSON içindeki grup kayıtlarına yazılır;
   SSH Host sırası değişmez. Gruba atanmamış bağlantılar Tüm bağlantılar içinde
-  görünür; sol menüde ayrı bir Grupsuz grubu bulunmaz.
+  görünür; Gruplar bölümündeki sabit Grupsuzlar satırından listelenebilir.
+  Bu satır silinemez, yeniden adlandırılamaz veya sıralanamaz; grupsuz bağlantı
+  kalmadığında gizlenir. Üzerine bağlantı sürüklemek grup atamasını kaldırır.
 - Ayarlar → Ortamlar: ortam oluşturma, ad/renk düzenleme ve kullanılmayan
   ortamı silme. Bağlantıda grup ve ortam UUID tabanlı açılır listelerden seçilir.
   İlk açılışta Production (kırmızı), Sandbox (sarı) ve Development (yeşil)
@@ -127,8 +129,15 @@ eklenme ve yedekten dönüş için saklanır.
   başarıyla kurulduğu anlamına gelmez.
 - Bağlantı, Gelişmiş ve Tüneller sekmelerinde SSH ayarları düzenlenir.
   Yeni bağlantı oluşturulurken hedef Include dosyası seçilebilir.
-- Kayıttan önce SSH ve metadata farkı birlikte gösterilir. İptal dosyaya yazmaz.
+- IdentityFile alanındaki dosya düğmesiyle bilgisayardan anahtar seçilebilir.
+  Port yalnızca rakam kabul eder ve 1–65535 aralığında olmalıdır; boş bırakılırsa
+  SSH varsayılanı kullanılır.
+- Değişiklik yokken Kaydet pasiftir. Değişiklikler ek bir onay ekranı olmadan,
+  önceki SSH ve metadata dosyaları yedeklenerek kaydedilir.
   Dış değişiklik varsa Ctrl+R ile yeniden yüklemek gerekir.
+- Üst çubuktaki SSH anahtarları menüsü, `~/.ssh` klasöründeki ve bağlantılarda
+  tanımlı özel/açık anahtarları listeler. Başka konumlar için klasör eklenebilir.
+  Anahtar içeriği veya dosya yolu tek tıkla kopyalanabilir.
 - Ayarlar → Yedekler çalışma alanının SSH dosyalarını ve metadata'sını birlikte
   geri yükler. Önce fark gösterilir, mevcut durum da yedeklenir.
   Yedekteki kaynak dosya artık çalışma alanında yoksa geri yükleme durdurulur.

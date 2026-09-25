@@ -27,7 +27,7 @@ install -Dm0644 packaging/confissh.desktop %{buildroot}%{_datadir}/applications/
 install -Dm0644 packaging/confissh.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/confissh.svg
 # Private sources avoid a versioned site-packages path and exact python(abi).
 install -d %{buildroot}%{_datadir}/confissh/confissh/resources/locales
-install -m0644 confissh/__init__.py confissh/core.py confissh/storage.py confissh/app.py confissh/i18n.py \
+install -m0644 confissh/__init__.py confissh/core.py confissh/storage.py confissh/keys.py confissh/app.py confissh/i18n.py \
     %{buildroot}%{_datadir}/confissh/confissh/
 install -m0644 confissh/resources/style.css %{buildroot}%{_datadir}/confissh/confissh/resources/style.css
 install -m0644 confissh/resources/locales/tr.json %{buildroot}%{_datadir}/confissh/confissh/resources/locales/tr.json

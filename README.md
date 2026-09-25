@@ -15,7 +15,12 @@ config files, while application-only metadata is stored separately.
 - Add environments, colors, tags, notes, favorites, and recent-use metadata.
 - Configure ProxyJump, tunnels, identity files, keep-alive options, and arbitrary
   OpenSSH directives.
-- Preview changes before saving and restore paired SSH/metadata backups.
+- View ungrouped connections in a fixed, non-deletable sidebar group that hides
+  when empty. Select identity files with the file picker.
+- Browse private/public keys in `~/.ssh`, configured identity paths, or an added
+  folder from **SSH keys**, and copy a key or its file path.
+- Save changes directly with automatic paired SSH/metadata backups; Save stays
+  disabled while an existing connection is unchanged. Preview backups before restoring.
 - Use light, dark, or system themes.
 - Use the interface in English or Turkish, or follow the system language.
 

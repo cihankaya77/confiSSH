@@ -59,6 +59,7 @@ mkdir -p \
 cp "$PROJECT_DIR/confissh/__init__.py" "$APPDIR/usr/lib/confissh/confissh/"
 cp "$PROJECT_DIR/confissh/core.py" "$APPDIR/usr/lib/confissh/confissh/"
 cp "$PROJECT_DIR/confissh/storage.py" "$APPDIR/usr/lib/confissh/confissh/"
+cp "$PROJECT_DIR/confissh/keys.py" "$APPDIR/usr/lib/confissh/confissh/"
 cp "$PROJECT_DIR/confissh/app.py" "$APPDIR/usr/lib/confissh/confissh/"
 cp "$PROJECT_DIR/confissh/i18n.py" "$APPDIR/usr/lib/confissh/confissh/"
 cp "$PROJECT_DIR/confissh/resources/style.css" "$APPDIR/usr/lib/confissh/confissh/resources/"

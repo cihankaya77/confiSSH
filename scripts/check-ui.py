@@ -10,6 +10,8 @@ import tempfile
 import time
 from pathlib import Path
 from uuid import UUID
+from unittest.mock import patch
+from types import SimpleNamespace
 
 with tempfile.TemporaryDirectory(prefix="confissh-ui-") as directory:
     os.environ["XDG_CONFIG_HOME"] = directory
@@ -21,7 +23,7 @@ with tempfile.TemporaryDirectory(prefix="confissh-ui-") as directory:
     config.write_text(f'Include "{extra}"\n\nHost github-work\n HostName github.com\n User git\n\n'
                       "Host prod-api\n HostName 192.0.2.12\n\n# Host archived\n# HostName 192.0.2.99\n")
     os.environ["CONFISSH_CONFIG"] = str(config)
-    from confissh.app import ConfiSSHApplication, EntryDialog, SettingsDialog, Gtk, Gdk, GLib
+    from confissh.app import ConfiSSHApplication, EntryDialog, KeysDialog, SettingsDialog, Gtk, Gdk, GLib, UNGROUPED_GROUP
     from confissh.storage import MetadataStore
 
     app = ConfiSSHApplication()
@@ -50,7 +52,7 @@ with tempfile.TemporaryDirectory(prefix="confissh-ui-") as directory:
     drain()
     assert len(window.all_entries()) == 4
     assert window.ordered_groups() == []
-    assert window.group_list.get_children() == []
+    assert [row.group_name for row in window.group_list.get_children()] == [UNGROUPED_GROUP]
     assert window.selected_group is None
     assert len(window.filtered_entries()) == 4
     assert len(window.store.data["connections"]) == 4
@@ -121,7 +123,13 @@ with tempfile.TemporaryDirectory(prefix="confissh-ui-") as directory:
     assert window.store.data["groups"][group_id]["color"] == "#9145b5"
     second_group = name_group("Personal")
     assert window.ordered_groups() == ["Operations", "Personal"]
-    assert "Ungrouped" not in [r.group_name for r in window.group_list.get_children()]
+    assert window.group_list.get_children()[-1].group_name == UNGROUPED_GROUP
+    assert "ungrouped" not in [row[1] for row in window.filter_selector.get_model()]
+    pinned = window.group_list.get_children()[-1]
+    assert not window.group_context_menu(pinned.drag_surface, SimpleNamespace(button=3))
+    assert not window.move_group(UNGROUPED_GROUP, "Operations")
+    assert not window.move_group("Operations", UNGROUPED_GROUP)
+    assert not pinned.drag_surface.drag_source_get_target_list()
     assert "Personal" in [r.group_name for r in window.group_list.get_children()]
     settings.environment_name.set_text("Staging")
     settings.save_environment()
@@ -166,6 +174,83 @@ with tempfile.TemporaryDirectory(prefix="confissh-ui-") as directory:
     assert [entry_tabs.get_tab_label_text(entry_tabs.get_nth_page(i))
             for i in range(entry_tabs.get_n_pages())] == ["Connection", "Organization", "Advanced", "Tunnels"]
     assert entry_tabs.get_current_page() == 0
+    assert not editor.save_button.get_sensitive()
+    for field in (*editor.fields.values(), *editor.setting_fields.values()):
+        original = field.get_text()
+        field.set_text("2222" if field is editor.fields["port"] else original + "changed")
+        assert editor.save_button.get_sensitive()
+        field.set_text(original)
+        assert not editor.save_button.get_sensitive()
+    editor.enabled.set_active(False)
+    assert editor.save_button.get_sensitive()
+    editor.enabled.set_active(True)
+    assert not editor.save_button.get_sensitive()
+    editor.extras.get_buffer().set_text("Compression yes")
+    assert editor.save_button.get_sensitive()
+    editor.extras.get_buffer().set_text("")
+    assert not editor.save_button.get_sensitive()
+    editor.group_selector.set_active_id(group_id)
+    assert editor.save_button.get_sensitive()
+    editor.group_selector.set_active_id("")
+    assert not editor.save_button.get_sensitive()
+    editor.environment_selector.set_active_id(env_id)
+    assert editor.save_button.get_sensitive()
+    editor.environment_selector.set_active_id("")
+    assert not editor.save_button.get_sensitive()
+    editor.add_tunnel("LocalForward", "1234 localhost:22")
+    assert editor.save_button.get_sensitive()
+    editor.tunnel_rows[-1][0].get_children()[-1].clicked()
+    assert not editor.save_button.get_sensitive()
+    for port in ("0", "65536", "9999999999"):
+        editor.fields["port"].set_text(port)
+        assert not editor.save_button.get_sensitive()
+    editor.fields["port"].set_text("65535")
+    assert editor.save_button.get_sensitive()
+    editor.fields["port"].insert_text("x", 0)
+    assert editor.fields["port"].get_text() == "65535"
+    editor.fields["port"].set_text("")
+    assert not editor.save_button.get_sensitive()
+    key_folder = Path(directory) / "test keys"
+    key_folder.mkdir()
+    private_key = key_folder / "test identity"
+    private_content = "-----BEGIN OPENSSH PRIVATE KEY-----\nTEST FIXTURE ONLY\n-----END OPENSSH PRIVATE KEY-----\n"
+    private_key.write_text(private_content)
+    public_key = key_folder / "test identity.pub"
+    public_key.write_text("ssh-ed25519 AAAATEST fixture\n")
+    # Real file chooser interaction, including a path containing spaces.
+    def select_identity():
+        for widget in Gtk.Window.list_toplevels():
+            if isinstance(widget, Gtk.FileChooserDialog) and widget.get_visible():
+                widget.set_filename(str(private_key))
+                GLib.timeout_add(200, lambda: (widget.response(Gtk.ResponseType.OK), False)[1])
+                return False
+        return True
+    GLib.timeout_add(50, select_identity)
+    editor.identity_browse.clicked()
+    from confissh.keys import identity_path
+    assert identity_path(editor.fields["identityfile"].get_text()) == private_key
+    assert editor.save_button.get_sensitive()
+    editor.fields["identityfile"].set_text("")
+    assert not editor.save_button.get_sensitive()
+    with patch("confissh.app.Path.home", return_value=Path(directory)):
+        key_dialog = KeysDialog(window)
+        drain()
+        assert key_dialog.status.get_text() == "No SSH keys found."
+        key_dialog.roots = [key_folder]
+        key_dialog.refresh()
+        drain()
+        assert len(key_dialog.key_list.get_children()) == 2
+        clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        for path in (private_key, public_key):
+            key_dialog.copy_key(path)
+            assert clipboard.wait_for_text() == path.read_text()
+            key_dialog.copy_key(path, path_only=True)
+            assert clipboard.wait_for_text() == str(path)
+        private_key.unlink()
+        key_dialog.copy_key(private_key)
+        assert key_dialog.status.get_text().startswith("Could not copy key:")
+        clipboard.clear()
+        key_dialog.destroy()
     for field in (editor.group_selector, editor.environment_selector, editor.fields["note"], editor.fields["tags"]):
         assert field.is_ancestor(entry_tabs.get_nth_page(1))
     for key in ("alias", "hostname", "user", "port", "identityfile", "proxyjump"):
@@ -201,12 +286,26 @@ with tempfile.TemporaryDirectory(prefix="confissh-ui-") as directory:
     candidate = copy.deepcopy(window.doc)
     candidate.replace(candidate.entries[0], edited)
     real_preview = window.text_dialog
-    window.text_dialog = lambda *args: False
-    before = config.read_bytes(), window.store.path.read_bytes()
-    assert not window.commit_candidate(candidate)
-    assert before == (config.read_bytes(), window.store.path.read_bytes())
-    window.text_dialog = lambda *args: True
+    def reject_save_preview(*args):
+        raise AssertionError("Saving must not open a review dialog")
+    window.text_dialog = reject_save_preview
     assert window.commit_candidate(candidate)
+    before = config.read_bytes(), window.store.path.read_bytes()
+    backups_before = window.store.list_backups()
+    assert not window.commit_candidate(copy.deepcopy(window.doc))
+    assert before == (config.read_bytes(), window.store.path.read_bytes())
+    assert backups_before == window.store.list_backups()
+    window.group_list.select_row(window.group_list.get_children()[-1])
+    assert window.selected_group == UNGROUPED_GROUP
+    assert window.page_title.get_text() == "Ungrouped connections"
+    assert window.add_button.get_label() == "Add connection"
+    assert connection_id not in [entry.connection_id for entry in window.filtered_entries()]
+    assert len(window.filtered_entries()) == 3
+    window.filter_selector.set_active_id("disabled")
+    assert len(window.filtered_entries()) == 1
+    window.filter_selector.set_active_id("all")
+    window.navigation.select_row(window.navigation.get_row_at_index(0))
+    window.text_dialog = lambda *args: True
     restore_point = sorted(window.store.backup_dir.glob("*.json"))[-1]
     record = window.store.data["connections"][connection_id]
     assert record["group_id"] == group_id
@@ -220,6 +319,7 @@ with tempfile.TemporaryDirectory(prefix="confissh-ui-") as directory:
     assert "LocalForward 15432 localhost:5432" in config.read_text()
     assert "ProxyJump included" in config.read_text()
     reopened = EntryDialog(window, window.doc.entries[0], [])
+    assert not reopened.save_button.get_sensitive()
     assert reopened.fields["proxyjump"].get_text() == "included"
     assert reopened.group_selector.get_active_id() == group_id
     assert reopened.environment_selector.get_active_id() == env_id
@@ -298,6 +398,7 @@ with tempfile.TemporaryDirectory(prefix="confissh-ui-") as directory:
     def cancel_duplicate():
         for widget in Gtk.Window.list_toplevels():
             if isinstance(widget, EntryDialog) and widget.get_visible():
+                assert widget.save_button.get_sensitive()
                 assert widget.connection_id != connection_id
                 assert widget.group_selector.get_active_id() == group_id
                 widget.response(Gtk.ResponseType.CANCEL)
@@ -311,7 +412,7 @@ with tempfile.TemporaryDirectory(prefix="confissh-ui-") as directory:
     assert window.doc.entries[0].group == "Personal"
     delete_group(second_group)
     assert window.store.data["connections"][connection_id]["group_id"] is None
-    assert window.group_list.get_children() == []
+    assert [row.group_name for row in window.group_list.get_children()] == [UNGROUPED_GROUP]
     assert window.selected_group is None
     assert len(window.filtered_entries()) == len(window.all_entries())
     assert connection_id in [entry.connection_id for entry in window.filtered_entries()]
@@ -331,6 +432,38 @@ with tempfile.TemporaryDirectory(prefix="confissh-ui-") as directory:
     window.filter_selector.set_active_id("disabled")
     assert len(window.filtered_entries()) == 1
     window.filter_selector.set_active_id("all")
+    # The virtual group disappears when its last connection is assigned, and
+    # reappears when a connection loses its group; it never enters metadata.
+    original_data = copy.deepcopy(window.store.data)
+    lifecycle_data = copy.deepcopy(original_data)
+    lifecycle_group = window.store.save_group(lifecycle_data, None, "Ungrouped connections")
+    window.save_metadata(lifecycle_data)
+    window.group_list.select_row(window.group_list.get_children()[-1])
+    for entry in window.all_entries():
+        assert window.move_connection(entry.connection_id, lifecycle_group)
+    window.rebuild_groups()
+    assert all(row.group_name != UNGROUPED_GROUP for row in window.group_list.get_children())
+    assert window.selected_group is None
+    assert window.move_connection(connection_id, None)
+    window.rebuild_groups()
+    pinned = window.group_list.get_children()[-1]
+    assert pinned.group_name == UNGROUPED_GROUP
+    window.group_list.select_row(pinned)
+    assert [entry.connection_id for entry in window.filtered_entries()] == [connection_id]
+    for mode in ("name", "custom"):
+        window.set_group_sort(mode)
+        assert window.group_list.get_children()[-1].group_name == UNGROUPED_GROUP
+        assert window.selected_group == UNGROUPED_GROUP
+    another = next(entry.connection_id for entry in window.all_entries() if entry.connection_id != connection_id)
+    with patch("confissh.app.Gtk.drag_finish") as finish:
+        window.group_drop(window.group_list.get_children()[-1].drag_surface, None, 0, 0,
+                          SimpleNamespace(get_data=lambda: another.encode()), 1, 0)
+        finish.assert_called_once_with(None, True, False, 0)
+    drain()
+    assert window.store.data["connections"][another]["group_id"] is None
+    assert len(window.filtered_entries()) == 2
+    window.save_metadata(original_data)
+    window.navigation.select_row(window.navigation.get_row_at_index(0))
     window.search.set_text("no such host")
     window.search_changed(window.search)
     assert window.empty.get_visible()
@@ -387,6 +520,8 @@ with tempfile.TemporaryDirectory(prefix="confissh-ui-") as directory:
     window.text_dialog = real_preview
     settings.destroy()
     old_window = window
+    window.group_list.select_row(window.group_list.get_children()[-1])
+    assert window.selected_group == UNGROUPED_GROUP
     def switch_live_language():
         for widget in Gtk.Window.list_toplevels():
             if isinstance(widget, SettingsDialog) and widget.get_visible():
@@ -399,6 +534,8 @@ with tempfile.TemporaryDirectory(prefix="confissh-ui-") as directory:
     window = app.props.active_window
     assert window is not old_window
     assert window.add_button.get_label() == "Bağlantı ekle"
+    assert window.selected_group == UNGROUPED_GROUP
+    assert window.page_title.get_text() == "Grupsuzlar"
     window.destroy()
     app.quit()
     print("PASS: UUIDs, independent groups/environments, favorites, paired restore, Include ownership, forms, filters and themes")

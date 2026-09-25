@@ -20,6 +20,7 @@ mkdir -p \
 cp "$PROJECT_DIR/confissh/__init__.py" "$ROOT/usr/lib/python3/dist-packages/confissh/"
 cp "$PROJECT_DIR/confissh/core.py" "$ROOT/usr/lib/python3/dist-packages/confissh/"
 cp "$PROJECT_DIR/confissh/storage.py" "$ROOT/usr/lib/python3/dist-packages/confissh/"
+cp "$PROJECT_DIR/confissh/keys.py" "$ROOT/usr/lib/python3/dist-packages/confissh/"
 cp "$PROJECT_DIR/confissh/app.py" "$ROOT/usr/lib/python3/dist-packages/confissh/"
 cp "$PROJECT_DIR/confissh/i18n.py" "$ROOT/usr/lib/python3/dist-packages/confissh/"
 cp "$PROJECT_DIR/confissh/resources/style.css" "$ROOT/usr/lib/python3/dist-packages/confissh/resources/"
@@ -33,6 +34,7 @@ chmod 0644 \
   "$ROOT/usr/lib/python3/dist-packages/confissh/__init__.py" \
   "$ROOT/usr/lib/python3/dist-packages/confissh/core.py" \
   "$ROOT/usr/lib/python3/dist-packages/confissh/storage.py" \
+  "$ROOT/usr/lib/python3/dist-packages/confissh/keys.py" \
   "$ROOT/usr/lib/python3/dist-packages/confissh/app.py" \
   "$ROOT/usr/lib/python3/dist-packages/confissh/i18n.py" \
   "$ROOT/usr/lib/python3/dist-packages/confissh/resources/style.css" \

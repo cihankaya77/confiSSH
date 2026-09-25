@@ -8,6 +8,7 @@ import time
 import shlex
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 import gi
@@ -18,6 +19,7 @@ from gi.repository import Gdk, Gio, Gtk, GLib  # noqa: E402
 
 from . import __version__
 from .storage import MetadataStore, new_id
+from .keys import discover_keys, identity_path, quote_identity_path, read_key
 from .i18n import _, ngettext, set_language, SUPPORTED_LANGUAGES
 from .core import (
     PRIMARY_KEYS,
@@ -34,6 +36,8 @@ from .core import (
 
 
 APP_ID = "io.github.confissh.ConfiSSH"
+# Empty names are invalid for user groups, so this identifies the virtual group.
+UNGROUPED_GROUP = ""
 
 
 def config_path() -> Path:
@@ -239,6 +243,8 @@ class EntryDialog(Gtk.Dialog):
         self.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
         save = self.add_button(_("Save"), Gtk.ResponseType.OK)
         save.get_style_context().add_class("suggested-action")
+        self.save_button = save
+        self.editing_existing = any(entry is item for item in parent.all_entries())
         self.set_default_response(Gtk.ResponseType.OK)
         self.connection_id = entry.connection_id if entry else new_id()
 
@@ -343,8 +349,20 @@ class EntryDialog(Gtk.Dialog):
                 grid.attach(self.proxyjump_selector, 1, row, 1, 1)
             else:
                 field = Gtk.Entry()
-                grid.attach(field, 1, row, 1, 1)
+                if key == "identityfile":
+                    identity_box = Gtk.Box(spacing=6)
+                    identity_box.pack_start(field, True, True, 0)
+                    self.identity_browse = icon_button("document-open-symbolic", _("Choose identity file"))
+                    self.identity_browse.connect("clicked", self.choose_identity_file)
+                    identity_box.pack_start(self.identity_browse, False, False, 0)
+                    grid.attach(identity_box, 1, row, 1, 1)
+                else:
+                    grid.attach(field, 1, row, 1, 1)
             field.set_text(values[key])
+            if key == "port":
+                field.set_input_purpose(Gtk.InputPurpose.DIGITS)
+                field.get_buffer().connect("inserted-text", self.insert_port_text)
+                field.set_tooltip_text(_("Port must be a number between 1 and 65535."))
             field.set_placeholder_text(placeholder)
             field.set_hexpand(True)
             if key == "alias":
@@ -421,7 +439,59 @@ class EntryDialog(Gtk.Dialog):
         enable_row.pack_start(Gtk.Label(label=_("Connection active"), xalign=0), True, True, 0)
         enable_row.pack_end(self.enabled, False, False, 0)
         area.pack_start(enable_row, False, False, 0)
+        self.initial_state = self.form_state()
+        for field in (*self.fields.values(), *self.setting_fields.values(),
+                      self.group_selector, self.environment_selector, self.source_selector,
+                      self.extras.get_buffer()):
+            field.connect("changed", self.update_save_state)
+        self.enabled.connect("notify::active", self.update_save_state)
+        self.update_save_state()
         self.show_all()
+
+    @staticmethod
+    def insert_port_text(buffer, position, text, length):
+        if not text.isascii() or not text.isdecimal():
+            buffer.delete_text(position, length)
+
+    def choose_identity_file(self, *_args):
+        chooser = Gtk.FileChooserDialog(title=_("Choose identity file"), transient_for=self,
+                                        action=Gtk.FileChooserAction.OPEN)
+        chooser.add_buttons(_("Cancel"), Gtk.ResponseType.CANCEL, _("Select"), Gtk.ResponseType.OK)
+        chooser.set_show_hidden(True)
+        current = identity_path(self.fields["identityfile"].get_text())
+        if current and current.is_file():
+            chooser.set_filename(str(current))
+        elif (Path.home() / ".ssh").is_dir():
+            chooser.set_current_folder(str(Path.home() / ".ssh"))
+        if chooser.run() == Gtk.ResponseType.OK:
+            filename = chooser.get_filename()
+            if filename:
+                self.fields["identityfile"].set_text(quote_identity_path(filename))
+        chooser.destroy()
+
+    def form_state(self):
+        buffer = self.extras.get_buffer()
+        return (
+            tuple(field.get_text().strip() for field in self.fields.values()),
+            tuple(field.get_text().strip() for field in self.setting_fields.values()),
+            self.group_selector.get_active_id(), self.environment_selector.get_active_id(),
+            self.source_selector.get_active_id(), self.enabled.get_active(),
+            buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), True).strip(),
+            tuple((selector.get_active_id(), listen.get_text().strip(), target.get_text().strip())
+                  for _row, selector, listen, target in self.tunnel_rows),
+        )
+
+    def update_save_state(self, *_args):
+        if not hasattr(self, "initial_state"):
+            return
+        port = self.fields["port"].get_text().strip()
+        valid_port = not port or (port.isascii() and port.isdecimal() and len(port) <= 5
+                                  and 1 <= int(port) <= 65535)
+        self.fields["port"].set_icon_from_icon_name(
+            Gtk.EntryIconPosition.SECONDARY, None if valid_port else "dialog-warning-symbolic")
+        self.save_button.set_sensitive(
+            bool(self.fields["alias"].get_text().strip()) and valid_port
+            and (not self.editing_existing or self.form_state() != self.initial_state))
 
     def add_tunnel(self, kind="LocalForward", value=""):
         row = Gtk.Box(spacing=8)
@@ -440,11 +510,15 @@ class EntryDialog(Gtk.Dialog):
         def delete(*_args):
             self.tunnel_rows.remove(record)
             row.destroy()
+            self.update_save_state()
         remove.connect("clicked", delete)
         for widget in (selector, listen, target, remove):
             row.pack_start(widget, widget in (listen, target), True, 0)
         self.tunnel_rows.append(record)
         self.tunnel_box.pack_start(row, False, False, 0)
+        for field in (selector, listen, target):
+            field.connect("changed", self.update_save_state)
+        self.update_save_state()
         row.show_all()
 
     def build_entry(self) -> HostEntry:
@@ -477,6 +551,113 @@ class EntryDialog(Gtk.Dialog):
             environment=self.environment_selector.get_active_id() or "",
             tags=parse_tags(values["tags"]),
         )
+
+
+class KeysDialog(Gtk.Dialog):
+    def __init__(self, parent):
+        super().__init__(title=_("SSH keys"), transient_for=parent, modal=True)
+        self.set_default_size(760, 500)
+        self.add_button(_("Close"), Gtk.ResponseType.CLOSE)
+        self.identities = [option.value for entry in parent.all_entries() for option in entry.options
+                           if option.enabled and option.key.lower() == "identityfile"]
+        self.roots = [Path.home() / ".ssh"]
+        self.closed = False
+        self.connect("destroy", self.on_destroy)
+        area = self.get_content_area()
+        area.set_border_width(18)
+        area.set_spacing(12)
+        hint = Gtk.Label(label=_("Keys in ~/.ssh and configured identity files. Add a folder to search other locations."), xalign=0)
+        hint.set_line_wrap(True)
+        area.pack_start(hint, False, False, 0)
+        actions = Gtk.Box(spacing=8)
+        self.refresh_button = Gtk.Button(label=_("Refresh"))
+        self.refresh_button.connect("clicked", self.refresh)
+        actions.pack_start(self.refresh_button, False, False, 0)
+        self.folder_button = Gtk.Button(label=_("Add folder…"))
+        self.folder_button.connect("clicked", self.add_folder)
+        actions.pack_start(self.folder_button, False, False, 0)
+        area.pack_start(actions, False, False, 0)
+        self.key_list = Gtk.ListBox()
+        self.key_list.set_selection_mode(Gtk.SelectionMode.NONE)
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll.add(self.key_list)
+        area.pack_start(scroll, True, True, 0)
+        self.status = Gtk.Label(xalign=0)
+        self.status.set_line_wrap(True)
+        self.status.set_selectable(True)
+        area.pack_start(self.status, False, False, 0)
+        self.show_all()
+        self.refresh()
+
+    def on_destroy(self, *_args):
+        self.closed = True
+
+    def refresh(self, *_args):
+        self.refresh_button.set_sensitive(False)
+        self.folder_button.set_sensitive(False)
+        self.status.set_text(_("Searching for SSH keys…"))
+        roots = list(self.roots)
+        def scan():
+            keys, errors = discover_keys(roots, self.identities)
+            GLib.idle_add(self.show_keys, keys, errors)
+        threading.Thread(target=scan, daemon=True).start()
+
+    def show_keys(self, keys, errors):
+        if self.closed:
+            return False
+        for row in self.key_list.get_children():
+            row.destroy()
+        for key in keys:
+            row = Gtk.Box(spacing=12)
+            row.set_border_width(10)
+            info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            title = Gtk.Label(label=key.path.name, xalign=0)
+            title.set_ellipsize(3)
+            title.get_style_context().add_class("host-title")
+            info.pack_start(title, False, False, 0)
+            kind = _("Private key") if key.kind == "private" else _("Public key")
+            detail = Gtk.Label(label=f"{kind} · {key.path}", xalign=0)
+            detail.set_ellipsize(3)
+            detail.set_tooltip_text(str(key.path))
+            detail.get_style_context().add_class("muted")
+            info.pack_start(detail, False, False, 0)
+            row.pack_start(info, True, True, 0)
+            copy_path = icon_button("edit-copy-symbolic", _("Copy file path"))
+            copy_path.connect("clicked", lambda _, path=key.path: self.copy_key(path, path_only=True))
+            row.pack_start(copy_path, False, False, 0)
+            copy_key = Gtk.Button(label=_("Copy private key") if key.kind == "private" else _("Copy public key"))
+            copy_key.connect("clicked", lambda _, path=key.path: self.copy_key(path))
+            row.pack_start(copy_key, False, False, 0)
+            self.key_list.add(row)
+        self.key_list.show_all()
+        message = _("{count} keys found.").format(count=len(keys)) if keys else _("No SSH keys found.")
+        if errors:
+            message += " " + _("Some files or folders could not be read ({count}).").format(count=len(errors))
+        self.status.set_text(message)
+        self.refresh_button.set_sensitive(True)
+        self.folder_button.set_sensitive(True)
+        return False
+
+    def add_folder(self, *_args):
+        chooser = Gtk.FileChooserDialog(title=_("Choose key folder"), transient_for=self,
+                                        action=Gtk.FileChooserAction.SELECT_FOLDER)
+        chooser.add_buttons(_("Cancel"), Gtk.ResponseType.CANCEL, _("Select"), Gtk.ResponseType.OK)
+        chooser.set_show_hidden(True)
+        if chooser.run() == Gtk.ResponseType.OK:
+            folder = chooser.get_filename()
+            if folder and Path(folder) not in self.roots:
+                self.roots.append(Path(folder))
+                self.refresh()
+        chooser.destroy()
+
+    def copy_key(self, path, path_only=False):
+        try:
+            content = str(path) if path_only else read_key(path)
+            Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(content, -1)
+            self.status.set_text(_("File path copied.") if path_only else _("Key copied to clipboard."))
+        except (OSError, ValueError) as error:
+            self.status.set_text(_("Could not copy key: {error}").format(error=error))
 
 
 class SettingsDialog(Gtk.Dialog):
@@ -785,6 +966,11 @@ class MainWindow(Gtk.ApplicationWindow):
         sidebar_button = icon_button("sidebar-show-symbolic", _("Show / hide sidebar"))
         sidebar_button.connect("clicked", lambda *_: self.toggle_sidebar())
         header.pack_start(sidebar_button)
+        self.keys_button = Gtk.Button(label=_("SSH keys"))
+        self.keys_button.set_image(Gtk.Image.new_from_icon_name("dialog-password-symbolic", Gtk.IconSize.BUTTON))
+        self.keys_button.set_always_show_image(True)
+        self.keys_button.connect("clicked", self.open_keys)
+        header.pack_end(self.keys_button)
 
         outer = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         self.paned = outer
@@ -1175,7 +1361,7 @@ class MainWindow(Gtk.ApplicationWindow):
             GLib.idle_add(self.rebuild_groups)
 
     def group_context_menu(self, row, event):
-        if event.button != 3:
+        if event.button != 3 or row.group_name == UNGROUPED_GROUP:
             return False
         menu = Gtk.Menu()
         groups = self.ordered_groups()
@@ -1232,6 +1418,11 @@ class MainWindow(Gtk.ApplicationWindow):
         if language_changed:
             GLib.idle_add(self.get_application().rebuild_window, self)
 
+    def open_keys(self, *_args):
+        dialog = KeysDialog(self)
+        dialog.run()
+        dialog.destroy()
+
     def environment_name(self, key):
         return self.store.data["environments"].get(key, {}).get("name", key)
 
@@ -1262,18 +1453,12 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def commit_candidate(self, candidate):
         original = self.documents[candidate.path]
-        diff = "".join(difflib.unified_diff(original.as_text().splitlines(True), candidate.as_text().splitlines(True), fromfile=str(original.path), tofile=_("Proposed changes")))
         data = copy.deepcopy(self.store.data)
         for entry in candidate.entries:
             data["connections"][entry.connection_id] = self.store.record(
                 entry, data["connections"].get(entry.connection_id))
         # Keep records for removed hosts so externally removed/re-added keys retain metadata.
-        metadata_diff = "".join(difflib.unified_diff(
-            json.dumps(self.store.data, ensure_ascii=False, indent=2).splitlines(True),
-            json.dumps(data, ensure_ascii=False, indent=2).splitlines(True),
-            fromfile="connections.json", tofile=_("Proposed application data")))
-        diff += "\n" + metadata_diff if metadata_diff else ""
-        if not diff or not self.text_dialog(_("Review changes before saving"), diff, True):
+        if original.as_text() == candidate.as_text() and data == self.store.data:
             return False
         documents = {**self.documents, candidate.path: candidate}
         self.store.commit(data, documents)
@@ -1384,8 +1569,13 @@ class MainWindow(Gtk.ApplicationWindow):
             self.group_list.remove(child)
         entries = self.all_entries()
         groups = [(group, sum(e.group == group for e in entries)) for group in self.ordered_groups()]
+        ungrouped_count = sum(entry.group_id is None for entry in entries)
+        if ungrouped_count:
+            groups.append((UNGROUPED_GROUP, ungrouped_count))
         selected_row = None
         for group, count in groups:
+            is_ungrouped = group == UNGROUPED_GROUP
+            group_label = _("Ungrouped connections") if is_ungrouped else group
             row = Gtk.ListBoxRow()
             row.group_name = group
             surface = Gtk.EventBox()
@@ -1393,25 +1583,32 @@ class MainWindow(Gtk.ApplicationWindow):
             surface.group_id = next((key for key, item in self.store.data["groups"].items()
                                      if item["name"] == group), None)
             row.drag_surface = surface
-            row.set_tooltip_text(_("Drag connections onto this group. Drag the group to reorder it."))
-            target = Gtk.TargetEntry.new("application/x-confissh-group", Gtk.TargetFlags.SAME_APP, 0)
             connection_target = Gtk.TargetEntry.new("application/x-confissh-connection", Gtk.TargetFlags.SAME_APP, 1)
-            surface.drag_source_set(Gdk.ModifierType.BUTTON1_MASK, [target], Gdk.DragAction.MOVE)
-            surface.drag_dest_set(Gtk.DestDefaults.ALL, [target, connection_target], Gdk.DragAction.MOVE)
-            surface.connect("drag-data-get", self.group_drag_data)
+            if is_ungrouped:
+                row.set_tooltip_text(_("Drag connections here to remove their group assignment."))
+                surface.drag_dest_set(Gtk.DestDefaults.ALL, [connection_target], Gdk.DragAction.MOVE)
+            else:
+                row.set_tooltip_text(_("Drag connections onto this group. Drag the group to reorder it."))
+                target = Gtk.TargetEntry.new("application/x-confissh-group", Gtk.TargetFlags.SAME_APP, 0)
+                surface.drag_source_set(Gdk.ModifierType.BUTTON1_MASK, [target], Gdk.DragAction.MOVE)
+                surface.drag_dest_set(Gtk.DestDefaults.ALL, [target, connection_target], Gdk.DragAction.MOVE)
+                surface.connect("drag-data-get", self.group_drag_data)
+                surface.connect("button-press-event", self.group_context_menu)
             surface.connect("drag-data-received", self.group_drop)
-            surface.connect("button-press-event", self.group_context_menu)
             box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
             box.set_border_width(9)
-            grip = Gtk.Label(label="⠿")
-            grip.get_style_context().add_class("muted")
-            grip.set_tooltip_text(_("Drag to reorder the group"))
-            box.pack_start(grip, False, False, 0)
-            label = Gtk.Label(label=group, xalign=0)
+            if is_ungrouped:
+                box.pack_start(Gtk.Image.new_from_icon_name("folder-symbolic", Gtk.IconSize.MENU), False, False, 0)
+            else:
+                grip = Gtk.Label(label="⠿")
+                grip.get_style_context().add_class("muted")
+                grip.set_tooltip_text(_("Drag to reorder the group"))
+                box.pack_start(grip, False, False, 0)
+            label = Gtk.Label(label=group_label, xalign=0)
             apply_group_color(label, self.store.data["groups"].get(surface.group_id, {}).get("color"))
             label.set_ellipsize(3)
             label.set_max_width_chars(21)
-            label.set_tooltip_text(group)
+            label.set_tooltip_text(group_label)
             box.pack_start(label, True, True, 0)
             badge = Gtk.Label(label=str(count))
             badge.get_style_context().add_class("count")
@@ -1446,7 +1643,10 @@ class MainWindow(Gtk.ApplicationWindow):
                 continue
             if self.status_filter == "disabled" and entry.enabled:
                 continue
-            if self.selected_group is not None and entry.group != self.selected_group:
+            if self.selected_group == UNGROUPED_GROUP:
+                if entry.group_id is not None:
+                    continue
+            elif self.selected_group is not None and entry.group != self.selected_group:
                 continue
             haystack = " ".join(
                 [entry.alias, entry.group, self.environment_name(entry.environment), entry.endpoint, entry.get("user"), entry.note,
@@ -1488,10 +1688,12 @@ class MainWindow(Gtk.ApplicationWindow):
             self.empty_hint.set_text(_("Start by adding a connection or clear the search filter."))
         active = sum(entry.enabled for entry in entries)
         self.summary.set_text(_("{count} connections  •  {active} active").format(count=len(entries), active=active))
-        self.page_title.set_text(_("All connections") if self.selected_group is None else self.selected_group)
+        self.page_title.set_text(_("Ungrouped connections") if self.selected_group == UNGROUPED_GROUP
+                                 else (_("All connections") if self.selected_group is None else self.selected_group))
         if self.favorites_view:
             self.page_title.set_text(_("Favorites"))
-        self.add_button.set_label(_("Add connection") if self.selected_group is None else _("Add connection to group"))
+        self.add_button.set_label(_("Add connection") if self.selected_group in (None, UNGROUPED_GROUP)
+                                  else _("Add connection to group"))
 
     def group_selected(self, _list: Gtk.ListBox, row: Gtk.ListBoxRow | None) -> None:
         if row is None or self.rebuilding_sidebar:
@@ -1699,7 +1901,8 @@ class ConfiSSHApplication(Gtk.Application):
             old_window.error_dialog(str(exc))
             return False
         window.resize(width, height)
-        window.selected_group = selected_group if selected_group in window.ordered_groups() else None
+        window.selected_group = (selected_group if selected_group == UNGROUPED_GROUP
+                                 or selected_group in window.ordered_groups() else None)
         window.favorites_view = favorites_view
         window.query = query
         window.search.set_text(query)
