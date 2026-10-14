@@ -65,7 +65,7 @@ jobs:
           test -f squashfs-root/usr/share/doc/confissh/LICENSE
           test -f squashfs-root/usr/lib/confissh/confissh/resources/locales/tr.json
       - name: Upload DEB and AppImage
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: deb-appimage
           path: |
@@ -87,7 +87,7 @@ jobs:
       - name: Test the same RPM on Fedora 42, 43, and 44
         run: make check-rpm
       - name: Upload RPM
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rpm
           path: dist/*.rpm
